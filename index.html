@@ -1,0 +1,1207 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#F6F4F0">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="타바타">
+<meta name="format-detection" content="telephone=no">
+<meta name="description" content="개인 학습용으로 만든 인터벌 타이머입니다. 특정 상용 앱과 관계가 없습니다.">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<link rel="icon" type="image/png" sizes="192x192" href="icon-192.png">
+<title>타바타 타이머</title>
+<style>
+:root {
+  --bg: #F6F4F0;
+  --surface: #FFFFFF;
+  --soft: #F2EFE9;
+  --ctl: #E8E4DC;
+  --line: #E4DFD6;
+  --ink: #2E3138;
+  --muted: #868B94;
+  --prep: #FBE7A1;
+  --work: #BFE6CB;
+  --rest: #F8C8C4;
+  --cycle: #CFD3F6;
+  --done: #DDE2E8;
+  --accent: #6F7FE0;
+  --accent-soft: #E7E9FB;
+  --font: ui-rounded, "SF Pro Rounded", -apple-system, BlinkMacSystemFont, "Segoe UI", "Apple SD Gothic Neo", "Malgun Gothic", "Noto Sans KR", "Noto Sans CJK KR", sans-serif;
+}
+* { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+html, body {
+  margin: 0; height: 100%; background: var(--bg); color: var(--ink); font-family: var(--font);
+  overscroll-behavior: none; -webkit-text-size-adjust: 100%;
+  -webkit-user-select: none; user-select: none;
+}
+body { overflow: hidden; touch-action: manipulation; }
+[hidden] { display: none !important; }
+.invisible { visibility: hidden; pointer-events: none; }
+button { font: inherit; color: inherit; background: none; border: 0; padding: 0; margin: 0; cursor: pointer; touch-action: manipulation; }
+button:focus-visible, select:focus-visible, input:focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; }
+svg { display: block; }
+
+#app { height: 100vh; height: 100dvh; max-width: 760px; margin: 0 auto; display: flex; flex-direction: column; }
+
+/* ---------- 상단 ---------- */
+.top { flex: none; display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: calc(env(safe-area-inset-top) + 10px) 14px 10px; }
+.title { margin: 0; min-width: 0; font-size: clamp(20px, 6.2vw, 28px); font-weight: 800; line-height: 1.2; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.top-actions { flex: none; display: flex; gap: 8px; }
+.icon-btn { width: 44px; height: 44px; border-radius: 50%; display: grid; place-items: center; background: var(--surface); border: 1px solid var(--line); color: var(--ink); }
+.icon-btn svg { width: 24px; height: 24px; }
+
+/* ---------- 안내 배너 ---------- */
+.notice { flex: none; display: flex; align-items: center; gap: 10px; margin: 0 14px 10px; padding: 10px 12px; background: #FFF7E3; border: 1px solid #F0E2BA; border-radius: 14px; }
+.notice p { margin: 0; flex: 1; font-size: 13px; line-height: 1.45; color: #5B5446; }
+.notice button { flex: none; font-weight: 800; font-size: 14px; color: var(--accent); padding: 6px 8px; }
+
+/* ---------- 칩 ---------- */
+.chips { flex: none; display: flex; flex-wrap: nowrap; gap: 8px; padding: 0 14px 10px; overflow-x: auto; scrollbar-width: none; }
+.chips::-webkit-scrollbar { display: none; }
+@media (max-width: 380px) { .chips { gap: 6px; } .chip { padding: 5px 9px; font-size: 13px; gap: 4px; } }
+.chip { flex: none; display: inline-flex; align-items: baseline; gap: 6px; padding: 6px 12px; background: var(--surface); border: 1px solid var(--line); border-radius: 999px; font-size: 14px; white-space: nowrap; }
+.chip-k { color: var(--muted); font-weight: 600; }
+.chip b { font-weight: 800; font-variant-numeric: tabular-nums; }
+
+/* ---------- 타이머 카드 ---------- */
+.view { flex: 1 1 auto; display: flex; flex-direction: column; min-height: 0; }
+.card { position: relative; flex: 1 1 0; min-height: 0; margin: 0 14px; border-radius: 28px; display: flex; flex-direction: column; align-items: center; justify-content: center; container-type: size; overflow: hidden; background: var(--surface); transition: background-color .15s linear; }
+.card[data-phase="prep"] { background: var(--prep); }
+.card[data-phase="work"] { background: var(--work); }
+.card[data-phase="rest"] { background: var(--rest); }
+.card[data-phase="cycleRest"] { background: var(--cycle); }
+.card[data-phase="done"] { background: var(--done); }
+.cur-label { font-weight: 800; font-size: min(13cqh, 11cqw); line-height: 1.1; }
+.cur-time { margin-top: 1cqh; font-weight: 800; font-size: min(46cqh, 32cqw); line-height: 1; font-variant-numeric: tabular-nums; letter-spacing: -0.02em; }
+.bar { position: absolute; left: 8%; right: 8%; bottom: 9%; height: 10px; border-radius: 5px; background: rgba(46, 49, 56, .12); overflow: hidden; }
+.bar-fill { width: 100%; height: 100%; border-radius: inherit; background: rgba(46, 49, 56, .55); transform-origin: left center; transform: scaleX(0); }
+.paused .cur-time { animation: pulse 1.6s ease-in-out infinite; }
+@keyframes pulse { 50% { opacity: .3; } }
+
+.next-card { flex: none; display: flex; align-items: center; gap: 10px; margin: 10px 14px 0; padding: 12px 16px; background: var(--surface); border: 1px solid var(--line); border-radius: 18px; min-width: 0; }
+.dot { flex: none; width: 14px; height: 14px; border-radius: 50%; background: var(--ctl); box-shadow: inset 0 0 0 1px rgba(0, 0, 0, .08); }
+.next-card[data-phase="prep"] .dot { background: var(--prep); }
+.next-card[data-phase="work"] .dot { background: var(--work); }
+.next-card[data-phase="rest"] .dot { background: var(--rest); }
+.next-card[data-phase="cycleRest"] .dot { background: var(--cycle); }
+.next-card[data-phase="done"] .dot { background: var(--done); }
+.next-k { flex: none; color: var(--muted); font-weight: 700; font-size: 15px; }
+.next-label { min-width: 0; font-weight: 800; font-size: 18px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.next-time { margin-left: auto; flex: none; font-weight: 800; font-size: 22px; font-variant-numeric: tabular-nums; }
+
+/* ---------- 조작 버튼 ---------- */
+.controls { flex: none; display: flex; align-items: center; justify-content: center; gap: clamp(18px, 7vw, 40px); padding: 14px 0 10px; }
+.play-wrap { display: flex; flex-direction: column; align-items: center; gap: 6px; }
+.play-btn { width: clamp(72px, min(24vw, 13vh), 104px); aspect-ratio: 1 / 1; border-radius: 50%; background: var(--accent); color: #fff; display: grid; place-items: center; box-shadow: 0 8px 20px rgba(111, 127, 224, .35); }
+.play-btn svg { width: 42%; height: 42%; }
+.play-btn .i-pause { display: none; }
+.play-btn.is-running .i-play { display: none; }
+.play-btn.is-running .i-pause { display: block; }
+.play-label { font-weight: 800; font-size: 15px; white-space: nowrap; }
+.sub-btn { width: 64px; display: flex; flex-direction: column; align-items: center; gap: 6px; }
+.sub-ic { width: 56px; height: 56px; border-radius: 50%; display: grid; place-items: center; background: var(--surface); border: 1px solid var(--line); color: var(--ink); }
+.sub-ic svg { width: 24px; height: 24px; }
+.sub-tx { font-size: 13px; font-weight: 700; color: var(--muted); white-space: nowrap; }
+.sub-btn:disabled { opacity: .4; cursor: default; }
+.sub-btn.placeholder { visibility: hidden; }
+
+/* ---------- 스톱워치 ---------- */
+.sw-card { background: var(--accent-soft); }
+.sw-time { font-weight: 800; font-size: min(40cqh, 21cqw); line-height: 1; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.sw-time.long { font-size: min(34cqh, 15cqw); }
+.sw-time .cs { font-size: 0.55em; color: #4b4f57; }
+.sw-laps { flex: 0 1 34%; min-height: 0; overflow-y: auto; margin: 10px 14px 0; padding: 2px 14px; background: var(--surface); border: 1px solid var(--line); border-radius: 18px; }
+.lap { display: grid; grid-template-columns: 1fr 1.3fr 1.3fr; padding: 11px 2px; border-bottom: 1px solid var(--line); font-variant-numeric: tabular-nums; font-size: 16px; }
+.lap:last-child { border-bottom: 0; }
+.lap span:first-child { color: var(--muted); font-weight: 700; }
+.lap span:not(:first-child) { text-align: right; }
+.sw-empty { color: var(--muted); text-align: center; padding: 18px; font-size: 15px; }
+
+/* ---------- 하단 탭 ---------- */
+.tabs { flex: none; display: flex; justify-content: space-around; gap: 6px; padding: 8px 10px calc(env(safe-area-inset-bottom) + 8px); background: var(--surface); border-top: 1px solid var(--line); }
+.tab { flex: 1; max-width: 132px; display: flex; flex-direction: column; align-items: center; gap: 3px; padding: 7px 0 6px; border-radius: 16px; color: var(--muted); font-weight: 700; font-size: 12px; }
+.tab svg { width: 26px; height: 26px; }
+.tab.active { background: var(--accent-soft); color: var(--accent); }
+
+/* ---------- 시트 ---------- */
+.sheet { position: fixed; inset: 0; z-index: 50; background: rgba(30, 32, 40, .35); display: flex; align-items: flex-end; justify-content: center; }
+.sheet-panel { width: 100%; max-width: 760px; max-height: 88vh; max-height: 88dvh; overflow-y: auto; background: var(--surface); color: var(--ink); border-radius: 22px 22px 0 0; padding: 0 16px calc(env(safe-area-inset-bottom) + 18px); box-shadow: 0 -8px 30px rgba(0, 0, 0, .12); }
+.sheet-head { position: sticky; top: 0; z-index: 1; display: flex; justify-content: space-between; align-items: center; background: var(--surface); padding: 14px 0 10px; }
+.sheet-head h2 { margin: 0; font-size: 20px; }
+.btn-text { color: var(--accent); font-weight: 800; font-size: 17px; padding: 8px 4px; }
+.group { margin-top: 14px; }
+.group h3 { margin: 0 0 8px; font-size: 13px; color: var(--muted); font-weight: 700; }
+.row { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 9px 12px; background: var(--soft); border-radius: 12px; margin-bottom: 8px; min-height: 54px; }
+.lbl { font-size: 17px; font-weight: 700; }
+.val { color: var(--muted); font-size: 15px; text-align: right; }
+select, input[type="text"] { -webkit-user-select: text; user-select: text; font: inherit; font-size: 17px; color: var(--ink); background: var(--surface); border: 1px solid var(--line); border-radius: 9px; }
+select { -webkit-appearance: none; appearance: none; padding: 7px 10px; text-align: center; text-align-last: center; font-variant-numeric: tabular-nums; min-width: 54px; }
+.dur { display: flex; align-items: center; gap: 6px; }
+.unit { color: var(--muted); font-size: 15px; margin-right: 4px; }
+.stepper { display: flex; align-items: center; gap: 8px; }
+.step-btn { width: 38px; height: 38px; border-radius: 50%; background: var(--surface); border: 1px solid var(--line); font-size: 22px; font-weight: 800; line-height: 1; }
+.seg { display: flex; background: var(--ctl); border-radius: 10px; padding: 3px; }
+.seg button { padding: 8px 14px; border-radius: 8px; font-weight: 700; font-size: 15px; color: var(--muted); }
+.seg button.on { background: var(--surface); color: var(--ink); box-shadow: 0 1px 3px rgba(0, 0, 0, .12); }
+.switch { position: relative; width: 52px; height: 32px; flex: none; }
+.switch input { position: absolute; inset: 0; width: 100%; height: 100%; margin: 0; opacity: 0; cursor: pointer; z-index: 1; }
+.switch .track { position: absolute; inset: 0; background: #CFCAC2; border-radius: 16px; transition: background .2s; }
+.switch .track::after { content: ""; position: absolute; top: 3px; left: 3px; width: 26px; height: 26px; border-radius: 50%; background: #fff; box-shadow: 0 1px 3px rgba(0, 0, 0, .2); transition: transform .2s; }
+.switch input:checked + .track { background: var(--accent); }
+.switch input:checked + .track::after { transform: translateX(20px); }
+.note { color: var(--muted); font-size: 13px; margin: 0 4px 10px; line-height: 1.45; }
+.warn { background: #FFF1DC; color: #7A5200; padding: 10px 12px; border-radius: 10px; font-size: 14px; line-height: 1.4; }
+.info { margin: 0 0 8px; padding: 12px; background: var(--soft); border-radius: 12px; font-size: 14px; line-height: 1.55; color: #4B4F57; }
+.summary { text-align: right; color: var(--accent); font-weight: 800; font-size: 16px; padding: 2px 4px 0; }
+.btn { display: block; width: 100%; padding: 13px; border-radius: 12px; background: var(--ctl); font-weight: 800; font-size: 16px; text-align: center; margin-top: 4px; }
+.btn.primary { background: var(--accent); color: #fff; }
+.plist { list-style: none; margin: 0; padding: 0; }
+.plist .empty { color: var(--muted); padding: 14px 4px; font-size: 15px; }
+.pitem { display: flex; align-items: stretch; background: var(--soft); border-radius: 12px; margin-bottom: 8px; overflow: hidden; }
+.pitem.current { box-shadow: inset 0 0 0 2px var(--accent); }
+.p-main { flex: 1; min-width: 0; text-align: left; padding: 12px; }
+.p-name { font-weight: 800; font-size: 17px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.p-sum { color: var(--muted); font-size: 13px; margin-top: 3px; line-height: 1.35; }
+.p-act { flex: none; padding: 0 12px; font-weight: 700; font-size: 14px; white-space: nowrap; color: var(--accent); }
+.p-del { color: #C8483F; }
+.p-del.armed { color: #fff; background: #C8483F; }
+.pitem.editing { align-items: center; gap: 6px; padding: 8px; }
+.p-input { flex: 1; min-width: 0; padding: 10px 12px; }
+.p-ok { flex: none; padding: 10px 14px; border-radius: 9px; background: var(--accent); color: #fff; font-weight: 800; font-size: 15px; }
+.p-cancel { flex: none; padding: 10px 8px; color: var(--muted); font-weight: 700; font-size: 15px; }
+.p-save { display: flex; gap: 8px; }
+.p-save input { flex: 1; min-width: 0; padding: 12px; }
+.p-save .btn { width: auto; margin: 0; padding: 12px 18px; }
+
+.toast { position: fixed; left: 50%; top: calc(env(safe-area-inset-top) + 70px); transform: translate(-50%, -8px); z-index: 60; max-width: min(92vw, 520px); background: rgba(46, 49, 56, .94); color: #fff; padding: 11px 16px; border-radius: 12px; font-size: 15px; line-height: 1.4; text-align: center; opacity: 0; transition: opacity .2s, transform .2s; pointer-events: none; box-shadow: 0 4px 18px rgba(0, 0, 0, .2); }
+.toast.show { opacity: 1; transform: translate(-50%, 0); }
+</style>
+</head>
+<body>
+<div id="app">
+  <header class="top">
+    <h1 class="title" id="title">타바타</h1>
+    <div class="top-actions">
+      <button class="icon-btn" id="btnPresets" aria-label="프리셋">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="9" y1="6" x2="20" y2="6"/><line x1="9" y1="12" x2="20" y2="12"/><line x1="9" y1="18" x2="20" y2="18"/><circle cx="4.5" cy="6" r="1.3" fill="currentColor" stroke="none"/><circle cx="4.5" cy="12" r="1.3" fill="currentColor" stroke="none"/><circle cx="4.5" cy="18" r="1.3" fill="currentColor" stroke="none"/></svg>
+      </button>
+      <button class="icon-btn" id="btnSettings" aria-label="설정">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"><path d="M10.16 4.01 L10.55 1.70 A10.4 10.4 0 0 1 13.45 1.70 L13.84 4.01 A8.2 8.2 0 0 1 16.35 5.05 L18.26 3.69 A10.4 10.4 0 0 1 20.31 5.74 L18.95 7.65 A8.2 8.2 0 0 1 19.99 10.16 L22.30 10.55 A10.4 10.4 0 0 1 22.30 13.45 L19.99 13.84 A8.2 8.2 0 0 1 18.95 16.35 L20.31 18.26 A10.4 10.4 0 0 1 18.26 20.31 L16.35 18.95 A8.2 8.2 0 0 1 13.84 19.99 L13.45 22.30 A10.4 10.4 0 0 1 10.55 22.30 L10.16 19.99 A8.2 8.2 0 0 1 7.65 18.95 L5.74 20.31 A10.4 10.4 0 0 1 3.69 18.26 L5.05 16.35 A8.2 8.2 0 0 1 4.01 13.84 L1.70 13.45 A10.4 10.4 0 0 1 1.70 10.55 L4.01 10.16 A8.2 8.2 0 0 1 5.05 7.65 L3.69 5.74 A10.4 10.4 0 0 1 5.74 3.69 L7.65 5.05 A8.2 8.2 0 0 1 10.16 4.01Z"/><circle cx="12" cy="12" r="3.4"/></svg>
+      </button>
+    </div>
+  </header>
+
+  <div class="notice" id="notice" hidden>
+    <p>특정 상용 앱과 관계없는 개인 학습용 프로젝트입니다. 설정과 기록은 이 기기에만 저장됩니다.</p>
+    <button id="noticeOk">확인</button>
+  </div>
+
+  <main class="view" id="viewTimer">
+    <div class="chips">
+      <span class="chip"><span class="chip-k">남은 시간</span><b id="total">00:00</b></span>
+      <span class="chip"><span class="chip-k">남은 라운드</span><b id="remRounds">0</b></span>
+      <span class="chip" id="cyclesStat"><span class="chip-k">남은 사이클</span><b id="remCycles">0</b></span>
+    </div>
+    <section class="card" id="cur" data-phase="prep">
+      <div class="cur-label" id="curLabel">준비</div>
+      <div class="cur-time" id="curTime">00:00</div>
+      <div class="bar" aria-hidden="true"><div class="bar-fill" id="curBar"></div></div>
+    </section>
+    <section class="next-card" id="next" data-phase="work">
+      <span class="dot"></span>
+      <span class="next-k" id="nextK">다음</span>
+      <span class="next-label" id="nextLabel">운동</span>
+      <span class="next-time" id="nextTime">00:00</span>
+    </section>
+    <section class="controls">
+      <button class="sub-btn" id="btnReset" aria-label="초기화">
+        <span class="sub-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M19.20 12.00 A7.2 7.2 0 1 1 15.60 5.76"/><path d="M18.37 7.36 L16.38 3.21 L13.78 7.72Z" fill="currentColor" stroke="none"/></svg></span>
+        <span class="sub-tx">초기화</span>
+      </button>
+      <div class="play-wrap">
+        <button class="play-btn" id="btnPlay" aria-label="시작">
+          <svg class="i-play" viewBox="0 0 24 24"><path d="M8 5.2v13.6L19 12z" fill="currentColor"/></svg>
+          <svg class="i-pause" viewBox="0 0 24 24"><rect x="6.2" y="5.2" width="4.2" height="13.6" rx="1" fill="currentColor"/><rect x="13.6" y="5.2" width="4.2" height="13.6" rx="1" fill="currentColor"/></svg>
+        </button>
+        <div class="play-label" id="playLabel">시작</div>
+      </div>
+      <span class="sub-btn placeholder" aria-hidden="true"><span class="sub-ic"></span><span class="sub-tx">-</span></span>
+    </section>
+  </main>
+
+  <main class="view" id="viewStopwatch" hidden>
+    <section class="card sw-card">
+      <div class="sw-time" id="swTime"><span id="swMain">00:00</span><span class="cs" id="swCs">.00</span></div>
+    </section>
+    <section class="sw-laps" id="swLaps"></section>
+    <section class="controls">
+      <button class="sub-btn" id="swLap" aria-label="랩">
+        <span class="sub-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 21V4"/><path d="M6 4h11l-2.5 4L17 12H6"/></svg></span>
+        <span class="sub-tx">랩</span>
+      </button>
+      <div class="play-wrap">
+        <button class="play-btn" id="swPlay" aria-label="시작">
+          <svg class="i-play" viewBox="0 0 24 24"><path d="M8 5.2v13.6L19 12z" fill="currentColor"/></svg>
+          <svg class="i-pause" viewBox="0 0 24 24"><rect x="6.2" y="5.2" width="4.2" height="13.6" rx="1" fill="currentColor"/><rect x="13.6" y="5.2" width="4.2" height="13.6" rx="1" fill="currentColor"/></svg>
+        </button>
+        <div class="play-label" id="swPlayLabel">시작</div>
+      </div>
+      <button class="sub-btn" id="swReset" aria-label="초기화">
+        <span class="sub-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M19.20 12.00 A7.2 7.2 0 1 1 15.60 5.76"/><path d="M18.37 7.36 L16.38 3.21 L13.78 7.72Z" fill="currentColor" stroke="none"/></svg></span>
+        <span class="sub-tx">초기화</span>
+      </button>
+    </section>
+  </main>
+
+  <nav class="tabs" role="tablist">
+    <button class="tab" data-mode="tabata" role="tab">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="12" cy="13.5" r="8"/><path d="M10 2.5h4M12 2.5v3M18.3 6.8l1.4-1.4"/><path d="M12 13.5 L12 8.5 A5 5 0 0 1 16.33 11 Z" fill="currentColor" stroke="none"/></svg>
+      <span>타바타</span>
+    </button>
+    <button class="tab" data-mode="round" role="tab">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M4.95 9.43 A7.5 7.5 0 0 1 18.50 8.25"/><path d="M19.90 10.67 L20.29 6.75 L16.30 9.05Z" fill="currentColor" stroke="none"/><path d="M19.05 14.57 A7.5 7.5 0 0 1 5.50 15.75"/><path d="M4.10 13.33 L3.71 17.25 L7.70 14.95Z" fill="currentColor" stroke="none"/></svg>
+      <span>라운드</span>
+    </button>
+    <button class="tab" data-mode="stopwatch" role="tab">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="12" cy="13.5" r="8"/><path d="M10 2.5h4M12 2.5v3"/><path d="M12 13.5l3.3-3.3"/><circle cx="12" cy="13.5" r="1.2" fill="currentColor" stroke="none"/></svg>
+      <span>스톱워치</span>
+    </button>
+  </nav>
+</div>
+
+<div class="sheet" id="sheetSettings" hidden role="dialog" aria-modal="true" aria-labelledby="settingsTitle">
+  <div class="sheet-panel">
+    <div class="sheet-head"><h2 id="settingsTitle">설정</h2><button class="btn-text" id="settingsDone">완료</button></div>
+    <div class="warn" id="settingsWarn" hidden>진행 중인 타이머가 있습니다. 시간·횟수를 바꾸면 타이머가 처음 상태로 돌아갑니다.</div>
+    <div class="group">
+      <h3>시간 · 횟수</h3>
+      <div id="fieldRows"></div>
+      <div class="summary">총 시간 <span id="draftTotal">00:00</span></div>
+    </div>
+    <div class="group">
+      <h3>알림</h3>
+      <div class="row">
+        <span class="lbl">알림 방식</span>
+        <div class="seg" role="radiogroup" aria-label="알림 방식">
+          <button data-alert="beep" role="radio">비프음</button>
+          <button data-alert="voice" role="radio">음성 안내</button>
+        </div>
+      </div>
+      <p class="note" id="alertNote"></p>
+      <div class="row" id="silentRow" hidden>
+        <span class="lbl">무음 모드에서도 소리</span>
+        <label class="switch"><input type="checkbox" id="silentToggle" role="switch" aria-label="무음 모드에서도 소리"><span class="track"></span></label>
+      </div>
+      <p class="note" id="silentNote" hidden>켜면 iPhone 무음 모드에서도 알림이 들립니다. 다른 앱 음악이 멈출 수 있으니, 음악과 함께 쓸 때는 꺼 보고 비교하세요.</p>
+      <button class="btn" id="btnTest">소리 테스트</button>
+    </div>
+    <div class="group">
+      <h3>상태</h3>
+      <div class="row"><span class="lbl">화면 켜짐 유지</span><span class="val" id="wakeStatus">-</span></div>
+    </div>
+    <div class="group">
+      <h3>앱 정보</h3>
+      <p class="info">이 앱은 특정 상용 타이머 앱과 관계없는 개인 학습용 프로젝트이며, 코드를 직접 작성했습니다. 사용자 데이터를 수집하거나 외부로 보내지 않고, 설정과 기록은 이 기기의 브라우저에만 저장됩니다.</p>
+      <div class="row"><span class="lbl">버전</span><span class="val" id="appVersion"></span></div>
+    </div>
+  </div>
+</div>
+
+<div class="sheet" id="sheetPresets" hidden role="dialog" aria-modal="true" aria-labelledby="presetsTitle">
+  <div class="sheet-panel">
+    <div class="sheet-head"><h2 id="presetsTitle">프리셋</h2><button class="btn-text" id="presetsClose">닫기</button></div>
+    <ul class="plist" id="presetList"></ul>
+    <div class="group">
+      <h3>현재 설정 저장</h3>
+      <div class="p-save">
+        <input type="text" id="presetName" maxlength="30" placeholder="프리셋 이름" autocomplete="off" enterkeyhint="done">
+        <button class="btn primary" id="btnSaveNew">저장</button>
+      </div>
+      <button class="btn" id="btnOverwrite" hidden style="margin-top:8px"></button>
+      <p class="note" style="margin-top:10px">같은 이름으로 저장하면 기존 프리셋을 덮어씁니다. 이름은 목록의 ‘이름 변경’으로 바꿀 수 있습니다. 프리셋은 이 기기의 브라우저에만 저장됩니다.</p>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast" hidden role="status" aria-live="polite"></div>
+
+<script>
+(() => {
+'use strict';
+
+// ===================== 상수 =====================
+const APP_VERSION = '1.1.0';
+const STORE_KEY = 'tabataTimer.v1';
+const IS_IOS = /iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+const MODES = ['tabata', 'round'];
+const PHASE = {
+  prep:      { label: '준비',        say: '준비' },
+  work:      { label: '운동',        say: '운동' },
+  rest:      { label: '휴식',        say: '휴식' },
+  cycleRest: { label: '사이클 휴식', say: '사이클 휴식' },
+  done:      { label: '완료',        say: '완료' },
+};
+const COUNT_WORDS = { 3: '셋', 2: '둘', 1: '하나' };
+const MODE_TITLE = { tabata: '타바타', round: '라운드', stopwatch: '스톱워치' };
+const DEFAULTS = {
+  tabata: { prep: 10, work: 20, rest: 10, rounds: 8, cycles: 1, cycleRest: 60 },
+  round:  { prep: 10, work: 45, rest: 15, rounds: 5, cycles: 1, cycleRest: 0 },
+};
+const VALUE_KEYS = ['prep', 'work', 'rest', 'rounds', 'cycles', 'cycleRest'];
+const SND = { count: [880, 0.12], switch: [1320, 0.6], finish: [1320, 1.1] }; // [Hz, 초]
+const BEEP_HORIZON_MS = 1500;   // 이만큼 앞의 비프음을 미리 예약
+const LATE_TOLERANCE_MS = 250;  // 이보다 늦은 비프음은 건너뜀
+const VOICE_STALE_MS = 700;     // 이보다 늦은 음성 안내는 건너뜀
+
+// ===================== 유틸 =====================
+const $ = (id) => document.getElementById(id);
+const clampInt = (v, lo, hi, d) => { v = Math.round(Number(v)); if (!Number.isFinite(v)) v = d; return Math.min(hi, Math.max(lo, v)); };
+const ceilSec = (ms) => Math.max(0, Math.ceil(ms / 1000));
+function fmt(sec) {
+  sec = Math.max(0, Math.floor(sec));
+  const h = Math.floor(sec / 3600), m = Math.floor((sec % 3600) / 60), s = sec % 60;
+  const mm = String(m).padStart(2, '0'), ss = String(s).padStart(2, '0');
+  return h > 0 ? `${h}:${mm}:${ss}` : `${mm}:${ss}`;
+}
+const fmtMs = (ms) => fmt(Math.floor(ms / 1000)) + '.' + String(Math.floor(ms / 10) % 100).padStart(2, '0');
+function setText(node, v) { if (node._v !== v) { node._v = v; node.textContent = v; } }
+function setPhase(node, ph) { if (node.dataset.phase !== ph) node.dataset.phase = ph; }
+function setBar(node, f) {
+  const v = `scaleX(${Math.min(1, Math.max(0, f)).toFixed(4)})`;
+  if (node._t !== v) { node._t = v; node.style.transform = v; }
+}
+const sameValues = (a, b) => VALUE_KEYS.every((k) => a[k] === b[k]);
+
+// ===================== 저장소 =====================
+function sanitizeConfig(c, mode) {
+  const d = DEFAULTS[mode]; c = c || {};
+  return {
+    prep: clampInt(c.prep, 0, 3599, d.prep),
+    work: clampInt(c.work, 1, 3599, d.work),
+    rest: clampInt(c.rest, 0, 3599, d.rest),
+    rounds: clampInt(c.rounds, 1, 99, d.rounds),
+    cycles: mode === 'tabata' ? clampInt(c.cycles, 1, 99, d.cycles) : 1,
+    cycleRest: mode === 'tabata' ? clampInt(c.cycleRest, 0, 3599, d.cycleRest) : 0,
+    name: (typeof c.name === 'string' && c.name.trim()) ? c.name.trim().slice(0, 30) : null,
+    presetId: typeof c.presetId === 'string' ? c.presetId : null,
+  };
+}
+function sanitizePreset(p, mode) {
+  const c = sanitizeConfig(p, mode);
+  const out = { id: String(p.id), name: String(p.name).trim().slice(0, 30) || '이름 없음' };
+  for (const k of VALUE_KEYS) out[k] = c[k];
+  return out;
+}
+function loadStore() {
+  let d;
+  try { d = JSON.parse(localStorage.getItem(STORE_KEY)); } catch (e) { d = null; }
+  if (!d || typeof d !== 'object') d = {};
+  d.prefs = Object.assign({ alertMode: 'beep', silentPlayback: true, mode: 'tabata', noticeDismissed: false }, d.prefs);
+  if (!['beep', 'voice'].includes(d.prefs.alertMode)) d.prefs.alertMode = 'beep';
+  if (!['tabata', 'round', 'stopwatch'].includes(d.prefs.mode)) d.prefs.mode = 'tabata';
+  d.prefs.silentPlayback = d.prefs.silentPlayback !== false;
+  d.prefs.noticeDismissed = d.prefs.noticeDismissed === true;
+  d.configs = (d.configs && typeof d.configs === 'object') ? d.configs : {};
+  d.presets = (d.presets && typeof d.presets === 'object') ? d.presets : {};
+  d.runs = (d.runs && typeof d.runs === 'object') ? d.runs : {};
+  for (const m of MODES) {
+    d.configs[m] = sanitizeConfig(d.configs[m], m);
+    const list = Array.isArray(d.presets[m]) ? d.presets[m] : [];
+    d.presets[m] = list.filter((p) => p && p.id != null && p.name != null).map((p) => sanitizePreset(p, m));
+  }
+  return d;
+}
+const S = loadStore();
+function save() { try { localStorage.setItem(STORE_KEY, JSON.stringify(S)); } catch (e) { /* 저장 불가 환경 */ } }
+
+// ===================== 구간·이벤트 =====================
+// 규칙: 사이클의 마지막 라운드 뒤에는 일반 휴식 대신 사이클 간 휴식, 마지막 운동 뒤에는 바로 종료.
+// remR: 현재(또는 다음) 사이클에서 아직 끝나지 않은 운동 수, remC: 아직 끝나지 않은 사이클 수
+function buildSegments(mode, c) {
+  const R = c.rounds, C = mode === 'tabata' ? c.cycles : 1;
+  const segs = [];
+  const add = (type, sec, remR, remC) => { if (sec > 0) segs.push({ type, dur: sec * 1000, remR, remC }); };
+  add('prep', c.prep, R, C);
+  for (let cy = 1; cy <= C; cy++) {
+    for (let r = 1; r <= R; r++) {
+      add('work', c.work, R - r + 1, C - cy + 1);
+      if (r < R) add('rest', c.rest, R - r, C - cy + 1);
+      else if (cy < C) add('cycleRest', c.cycleRest, R, C - cy);
+    }
+  }
+  let t = 0;
+  for (const s of segs) { s.start = t; t += s.dur; s.end = t; }
+  return segs;
+}
+const totalOf = (segs) => (segs.length ? segs[segs.length - 1].end : 0);
+function buildEvents(segs) {
+  const ev = [];
+  segs.forEach((s, i) => {
+    if (i === 0) ev.push({ id: 'start', t: 0, kind: 'start', seg: 0 });
+    for (const n of [3, 2, 1]) {
+      const t = s.end - n * 1000;
+      if (t >= s.start) ev.push({ id: `c${i}_${n}`, t, kind: 'count', n, seg: i, atStart: t - s.start < 500 });
+    }
+    ev.push({ id: `e${i}`, t: s.end, kind: i === segs.length - 1 ? 'finish' : 'switch', seg: i });
+  });
+  ev.sort((a, b) => a.t - b.t);
+  return ev;
+}
+function beepFor(e) {
+  if (e.kind === 'count') return (e.atStart && e.seg > 0) ? null : SND.count; // 전환 긴 음과 겹치는 짧은 음은 생략
+  if (e.kind === 'switch') return SND.switch;
+  if (e.kind === 'finish') return SND.finish;
+  return null;
+}
+function voiceFor(e, segs) {
+  if (e.kind === 'start') return PHASE[segs[0].type].say;
+  if (e.kind === 'count') return e.atStart ? null : COUNT_WORDS[e.n]; // 단계 이름과 겹치면 생략
+  if (e.kind === 'switch') return PHASE[segs[e.seg + 1].type].say;
+  if (e.kind === 'finish') return PHASE.done.say;
+  return null;
+}
+
+// ===================== 소리 (Web Audio) =====================
+const Snd = {
+  ctx: null, master: null, nodes: new Set(), log: [], interrupted: false,
+  applySession() {
+    if (!('audioSession' in navigator)) return;
+    try { navigator.audioSession.type = S.prefs.silentPlayback ? 'playback' : 'auto'; } catch (e) { /* 미지원 */ }
+  },
+  ensure() { // 사용자 탭 안에서 호출해야 iOS에서 소리가 열림
+    const AC = window.AudioContext || window.webkitAudioContext;
+    if (!AC) return null;
+    if (!this.ctx) {
+      this.applySession();
+      try { this.ctx = new AC(); } catch (e) { return null; }
+      this.master = this.ctx.createGain();
+      this.master.gain.value = 1;
+      this.master.connect(this.ctx.destination);
+      this.ctx.onstatechange = onAudioState;
+      try {
+        const b = this.ctx.createBuffer(1, 1, 22050), src = this.ctx.createBufferSource();
+        src.buffer = b; src.connect(this.ctx.destination); src.start(0);
+      } catch (e) { /* 무시 */ }
+    }
+    if (this.ctx.state !== 'running') { const p = this.ctx.resume(); if (p && p.catch) p.catch(() => {}); }
+    return this.ctx;
+  },
+  usable() { return !!this.ctx && this.ctx.state !== 'closed'; },
+  tone(at, freq, dur, owner, vol = 0.9) {
+    const ctx = this.ctx; if (!ctx) return;
+    const osc = ctx.createOscillator(), g = ctx.createGain();
+    osc.type = 'sine'; osc.frequency.value = freq;
+    g.gain.setValueAtTime(0, at);
+    g.gain.linearRampToValueAtTime(vol, at + 0.008);
+    g.gain.setValueAtTime(vol, at + Math.max(0.01, dur - 0.03));
+    g.gain.linearRampToValueAtTime(0, at + dur);
+    osc.connect(g); g.connect(this.master);
+    const node = { osc, g, owner };
+    this.nodes.add(node);
+    osc.onended = () => { this.nodes.delete(node); try { osc.disconnect(); g.disconnect(); } catch (e) { /* 무시 */ } };
+    osc.start(at); osc.stop(at + dur + 0.05);
+    this.log.push({ wall: Date.now(), at, now: ctx.currentTime, freq, dur, owner: (owner && owner.mode) || owner });
+    if (this.log.length > 600) this.log.splice(0, 100);
+  },
+  cancel(owner) {
+    for (const n of Array.from(this.nodes)) {
+      if (owner && n.owner !== owner) continue;
+      try { n.osc.onended = null; n.osc.stop(); } catch (e) { /* 무시 */ }
+      try { n.osc.disconnect(); n.g.disconnect(); } catch (e) { /* 무시 */ }
+      this.nodes.delete(n);
+    }
+  },
+  close() {
+    this.cancel();
+    if (this.ctx) { const c = this.ctx; this.ctx = null; this.master = null; c.onstatechange = null; c.close().catch(() => {}); }
+  },
+};
+
+// ===================== 음성 (Web Speech) =====================
+const Voice = {
+  supported: 'speechSynthesis' in window && typeof window.SpeechSynthesisUtterance === 'function',
+  voice: null, log: [],
+  pick() {
+    if (!this.supported) return;
+    let vs = [];
+    try { vs = speechSynthesis.getVoices() || []; } catch (e) { vs = []; }
+    const ko = vs.filter((v) => /^ko([-_]|$)/i.test(v.lang || ''));
+    this.voice = ko.find((v) => v.localService) || ko[0] || null;
+    renderAlertInfo();
+  },
+  speak(text, vol = 1) {
+    this.log.push({ wall: Date.now(), text });
+    if (this.log.length > 300) this.log.splice(0, 50);
+    if (!this.supported || !text) return;
+    try {
+      const u = new SpeechSynthesisUtterance(text);
+      u.lang = 'ko-KR'; if (this.voice) u.voice = this.voice;
+      u.rate = 1.05; u.pitch = 1; u.volume = vol;
+      if (speechSynthesis.speaking || speechSynthesis.pending) speechSynthesis.cancel();
+      speechSynthesis.speak(u);
+    } catch (e) { /* 무시 */ }
+  },
+  cancel() { if (this.supported) { try { speechSynthesis.cancel(); } catch (e) { /* 무시 */ } } },
+};
+
+// ===================== 인터벌 엔진 =====================
+// 틱 횟수를 세지 않고 시작 시각 기준 경과 시간으로 위치를 계산한다.
+class IntervalEngine {
+  constructor(mode) {
+    this.mode = mode; this.state = 'idle'; this.elapsed = 0; this.startAt = 0; this.lastT = -1;
+    this.scheduled = new Set();
+    this.setConfig(S.configs[mode]);
+  }
+  setConfig(cfg) {
+    this.cfg = cfg;
+    this.segs = buildSegments(this.mode, cfg);
+    this.total = totalOf(this.segs);
+    this.events = buildEvents(this.segs);
+  }
+  t(now) { return this.state === 'running' ? now - this.startAt : this.elapsed; }
+  indexAt(t) {
+    if (t >= this.total) return -1;
+    for (let i = 0; i < this.segs.length; i++) if (t < this.segs[i].end) return i;
+    return -1;
+  }
+  isActive() { return this.state === 'running' || this.state === 'paused'; }
+  start(now) {
+    if (this.state === 'running') return;
+    if (this.state === 'paused') this.lastT = this.elapsed;
+    else { this.elapsed = 0; this.lastT = -1; }
+    this.startAt = now - this.elapsed;
+    this.state = 'running';
+    this.clearAudio();
+  }
+  pause(now) {
+    if (this.state !== 'running') return;
+    this.elapsed = Math.min(Math.max(0, now - this.startAt), this.total);
+    this.state = 'paused';
+    this.clearAudio(); Voice.cancel();
+  }
+  reset() { this.state = 'idle'; this.elapsed = 0; this.lastT = -1; this.clearAudio(); }
+  clearAudio(markPastAt) {
+    Snd.cancel(this); this.scheduled.clear();
+    if (markPastAt != null) for (const e of this.events) { if (e.t <= markPastAt) this.scheduled.add(e.id); else break; }
+  }
+  // 반환값: 이번 호출에서 종료되었는지
+  update(now, hidden) {
+    if (this.state !== 'running') return false;
+    const t = now - this.startAt;
+    if (S.prefs.alertMode === 'beep') this.scheduleBeeps(t, (hidden && !IS_IOS) ? Infinity : BEEP_HORIZON_MS);
+    else this.fireVoice(t);
+    this.lastT = t;
+    if (t >= this.total) { this.state = 'finished'; this.elapsed = this.total; this.scheduled.clear(); return true; }
+    return false;
+  }
+  scheduleBeeps(t, horizon) {
+    if (!Snd.usable()) return;
+    const ctx = Snd.ctx;
+    for (const e of this.events) {
+      if (e.t > t + horizon) break;
+      if (e.t < t - LATE_TOLERANCE_MS || this.scheduled.has(e.id)) continue;
+      this.scheduled.add(e.id);
+      const snd = beepFor(e);
+      if (snd) Snd.tone(ctx.currentTime + Math.max(0, (e.t - t) / 1000), snd[0], snd[1], this);
+    }
+  }
+  fireVoice(t) {
+    for (const e of this.events) {
+      if (e.t > t) break;
+      if (e.t <= this.lastT || t - e.t > VOICE_STALE_MS) continue;
+      const text = voiceFor(e, this.segs);
+      if (text) Voice.speak(text);
+    }
+  }
+}
+
+// ===================== 스톱워치 =====================
+const SW = {
+  running: false, startAt: 0, elapsed: 0, laps: [],
+  t(now) { return this.running ? now - this.startAt : this.elapsed; },
+};
+
+const engines = { tabata: new IntervalEngine('tabata'), round: new IntervalEngine('round') };
+let mode = S.prefs.mode;
+
+// ===================== 화면 켜짐 유지 =====================
+const Wake = {
+  lock: null, pending: false,
+  status: ('wakeLock' in navigator) ? '대기' : '미지원',
+  async request() {
+    if (!('wakeLock' in navigator)) { this.status = '미지원'; renderStatus(); return; }
+    if ((this.lock && !this.lock.released) || this.pending || document.visibilityState !== 'visible') return;
+    this.pending = true;
+    try {
+      const l = await navigator.wakeLock.request('screen');
+      this.lock = l; this.status = '사용 중';
+      l.addEventListener('release', () => { if (this.lock === l) { this.lock = null; this.status = '해제됨'; renderStatus(); } });
+      if (!anyActive()) this.release();
+    } catch (e) {
+      this.lock = null; this.status = `실패 (${(e && e.name) || '오류'})`;
+    } finally { this.pending = false; renderStatus(); }
+  },
+  release() {
+    if (this.lock) { const l = this.lock; this.lock = null; l.release().catch(() => {}); }
+    if ('wakeLock' in navigator) this.status = '꺼짐';
+    renderStatus();
+  },
+};
+function anyActive() { return MODES.some((m) => engines[m].isActive()) || SW.running; }
+function anyRunning() { return MODES.some((m) => engines[m].state === 'running') || SW.running; }
+const anyIntervalRunning = () => MODES.some((m) => engines[m].state === 'running');
+function syncWakeLock() { if (anyActive()) Wake.request(); else if (Wake.lock) Wake.release(); }
+
+// ===================== DOM =====================
+const el = {
+  title: $('title'), total: $('total'), btnSettings: $('btnSettings'), btnReset: $('btnReset'), btnPresets: $('btnPresets'),
+  notice: $('notice'), noticeOk: $('noticeOk'),
+  viewTimer: $('viewTimer'), viewSW: $('viewStopwatch'),
+  cur: $('cur'), curLabel: $('curLabel'), curTime: $('curTime'), curBar: $('curBar'),
+  next: $('next'), nextK: $('nextK'), nextLabel: $('nextLabel'), nextTime: $('nextTime'),
+  remRounds: $('remRounds'), remCycles: $('remCycles'), cyclesStat: $('cyclesStat'),
+  btnPlay: $('btnPlay'), playLabel: $('playLabel'),
+  swTime: $('swTime'), swMain: $('swMain'), swCs: $('swCs'), swLaps: $('swLaps'),
+  swLap: $('swLap'), swPlay: $('swPlay'), swPlayLabel: $('swPlayLabel'), swReset: $('swReset'),
+  toast: $('toast'),
+};
+
+// ===================== 렌더링 =====================
+function titleFor(eng) {
+  const c = eng.cfg;
+  if (!c.name) return MODE_TITLE[eng.mode];
+  const p = c.presetId ? S.presets[eng.mode].find((x) => x.id === c.presetId) : null;
+  return c.name + (p && !sameValues(p, c) ? ' *' : '');
+}
+function render() {
+  const now = Date.now();
+  if (mode === 'stopwatch') renderStopwatch(now); else renderInterval(engines[mode], now);
+}
+function renderInterval(eng, now) {
+  setText(el.title, titleFor(eng));
+  const idle = eng.state === 'idle';
+  const t = Math.min(Math.max(0, eng.t(now)), eng.total);
+  setText(el.total, fmt(ceilSec(idle ? eng.total : eng.total - t)));
+  const idx = eng.state === 'finished' ? -1 : (idle ? 0 : eng.indexAt(t));
+  if (idx < 0) {
+    setPhase(el.cur, 'done'); setText(el.curLabel, PHASE.done.label); setText(el.curTime, '00:00'); setBar(el.curBar, 1);
+    setPhase(el.next, 'none'); setText(el.nextK, '총 운동 시간'); setText(el.nextLabel, ''); setText(el.nextTime, fmt(eng.total / 1000));
+    setText(el.remRounds, '0'); setText(el.remCycles, '0');
+  } else {
+    const s = eng.segs[idx], n = eng.segs[idx + 1];
+    setText(el.nextK, '다음');
+    setPhase(el.cur, s.type); setText(el.curLabel, PHASE[s.type].label);
+    setText(el.curTime, fmt(ceilSec(idle ? s.dur : s.end - t)));
+    setBar(el.curBar, idle ? 0 : (t - s.start) / s.dur);
+    if (n) { setPhase(el.next, n.type); setText(el.nextLabel, PHASE[n.type].label); setText(el.nextTime, fmt(n.dur / 1000)); }
+    else { setPhase(el.next, 'done'); setText(el.nextLabel, PHASE.done.label); setText(el.nextTime, ''); }
+    setText(el.remRounds, String(s.remR)); setText(el.remCycles, String(s.remC));
+  }
+  const running = eng.state === 'running';
+  el.viewTimer.classList.toggle('paused', eng.state === 'paused');
+  el.btnPlay.classList.toggle('is-running', running);
+  el.btnPlay.setAttribute('aria-label', running ? '일시정지' : '시작');
+  setText(el.playLabel, running ? '일시정지' : eng.state === 'paused' ? '계속' : eng.state === 'finished' ? '다시 시작' : '시작');
+}
+function renderStopwatch(now) {
+  setText(el.title, MODE_TITLE.stopwatch);
+  const ms = Math.max(0, SW.t(now)), sec = Math.floor(ms / 1000);
+  setText(el.swMain, fmt(sec));
+  setText(el.swCs, '.' + String(Math.floor(ms / 10) % 100).padStart(2, '0'));
+  el.swTime.classList.toggle('long', sec >= 3600);
+  el.swPlay.classList.toggle('is-running', SW.running);
+  el.swPlay.setAttribute('aria-label', SW.running ? '정지' : '시작');
+  setText(el.swPlayLabel, SW.running ? '정지' : SW.elapsed > 0 ? '계속' : '시작');
+  el.swLap.disabled = !SW.running;
+  el.swReset.disabled = SW.running || (SW.elapsed === 0 && SW.laps.length === 0);
+}
+function renderLaps() {
+  const box = el.swLaps; box.textContent = '';
+  if (!SW.laps.length) {
+    const d = document.createElement('div'); d.className = 'sw-empty'; d.textContent = '랩 기록이 없습니다'; box.appendChild(d); return;
+  }
+  for (const L of SW.laps) {
+    const row = document.createElement('div'); row.className = 'lap';
+    const a = document.createElement('span'); a.textContent = `랩 ${L.n}`;
+    const b = document.createElement('span'); b.textContent = fmtMs(L.lap);
+    const c = document.createElement('span'); c.textContent = fmtMs(L.total);
+    row.append(a, b, c); box.appendChild(row);
+  }
+}
+function updateModeUI() {
+  const isSW = mode === 'stopwatch';
+  el.viewTimer.hidden = isSW; el.viewSW.hidden = !isSW;
+  for (const b of document.querySelectorAll('.tab')) {
+    const on = b.dataset.mode === mode;
+    b.classList.toggle('active', on); b.setAttribute('aria-selected', on ? 'true' : 'false');
+  }
+  for (const x of [el.btnSettings, el.btnPresets]) x.classList.toggle('invisible', isSW);
+  el.cyclesStat.hidden = mode !== 'tabata';
+  if (isSW) renderLaps();
+}
+function setMode(m) {
+  if (m === mode || !MODE_TITLE[m]) return;
+  mode = m; S.prefs.mode = m; save(); updateModeUI(); render();
+}
+
+// ===================== 진행 루프 =====================
+let tickTimer = null;
+function ensureTicking() { if (!tickTimer) tickTimer = setInterval(tick, 50); }
+function tick() {
+  const now = Date.now(), hidden = document.visibilityState === 'hidden';
+  let finished = false;
+  for (const m of MODES) if (engines[m].update(now, hidden)) finished = true;
+  if (finished) afterStateChange();
+  else if (!hidden) render();
+  if (!anyRunning() && tickTimer) { clearInterval(tickTimer); tickTimer = null; }
+}
+let suspendTimer = null;
+function maybeSuspendAudio(delay = 2500) { // 쉬는 동안 오디오 세션을 놓아 다른 앱 소리를 방해하지 않도록
+  clearTimeout(suspendTimer);
+  if (anyIntervalRunning()) return;
+  suspendTimer = setTimeout(() => {
+    if (Snd.ctx && Snd.ctx.state === 'running' && !anyIntervalRunning()) Snd.ctx.suspend().catch(() => {});
+  }, delay);
+}
+function onAudioState() {
+  const ctx = Snd.ctx; if (!ctx) return;
+  if (ctx.state !== 'running') { if (anyIntervalRunning()) Snd.interrupted = true; return; }
+  if (Snd.interrupted) { // 끊겼다가 다시 열리면 현재 위치 기준으로 다시 예약
+    Snd.interrupted = false;
+    const now = Date.now();
+    for (const m of MODES) { const e = engines[m]; if (e.state === 'running') e.clearAudio(e.t(now)); }
+  }
+}
+function persistRuns() {
+  S.runs = { stopwatch: { running: SW.running, startAt: SW.startAt, elapsed: SW.elapsed, laps: SW.laps.slice(0, 300) } };
+  for (const m of MODES) { const e = engines[m]; S.runs[m] = { state: e.state, startAt: e.startAt, elapsed: e.elapsed }; }
+  save();
+}
+function restoreRuns() {
+  const now = Date.now(), R = S.runs || {};
+  for (const m of MODES) {
+    const r = R[m], e = engines[m];
+    if (!r) continue;
+    if (r.state === 'running' && Number.isFinite(r.startAt)) {
+      const t = now - r.startAt;
+      if (t >= 0 && t < e.total) { e.state = 'running'; e.startAt = r.startAt; e.elapsed = 0; e.lastT = t; e.clearAudio(t); }
+    } else if (r.state === 'paused' && r.elapsed > 0 && r.elapsed < e.total) {
+      e.state = 'paused'; e.elapsed = r.elapsed; e.lastT = r.elapsed;
+    }
+  }
+  const w = R.stopwatch;
+  if (w) {
+    SW.running = !!w.running && Number.isFinite(w.startAt);
+    SW.startAt = Number(w.startAt) || 0;
+    SW.elapsed = Math.max(0, Number(w.elapsed) || 0);
+    SW.laps = Array.isArray(w.laps) ? w.laps.filter((L) => L && Number.isFinite(L.lap) && Number.isFinite(L.total)) : [];
+  }
+}
+function afterStateChange() { persistRuns(); syncWakeLock(); maybeSuspendAudio(); render(); }
+
+// ===================== 동작 =====================
+function onPlay() {
+  const eng = engines[mode], now = Date.now();
+  if (eng.state === 'running') {
+    eng.pause(now);
+  } else {
+    const resume = eng.state === 'paused';
+    if (S.prefs.alertMode === 'beep') Snd.ensure();
+    eng.start(now);
+    if (S.prefs.alertMode === 'voice' && resume) {
+      const i = eng.indexAt(eng.t(now));
+      if (i >= 0) Voice.speak(PHASE[eng.segs[i].type].say);
+    }
+    eng.update(now, false); // 첫 소리·음성을 탭 처리 안에서 바로 예약
+    ensureTicking();
+  }
+  afterStateChange();
+}
+function onReset() { engines[mode].reset(); Voice.cancel(); afterStateChange(); }
+function swToggle() {
+  const now = Date.now();
+  if (SW.running) { SW.elapsed = Math.max(0, now - SW.startAt); SW.running = false; }
+  else { SW.startAt = now - SW.elapsed; SW.running = true; ensureTicking(); }
+  persistRuns(); syncWakeLock(); render();
+}
+function swLap() {
+  if (!SW.running) return;
+  const total = Date.now() - SW.startAt, prev = SW.laps.length ? SW.laps[0].total : 0;
+  SW.laps.unshift({ n: SW.laps.length + 1, lap: total - prev, total });
+  persistRuns(); renderLaps();
+}
+function swReset() {
+  if (SW.running) return;
+  SW.elapsed = 0; SW.laps = [];
+  persistRuns(); syncWakeLock(); render(); renderLaps();
+}
+
+// ===================== 시트 공통 =====================
+let openSheet = null;
+function showSheet(id) { openSheet = $(id); openSheet.hidden = false; }
+function hideSheet() {
+  if (openSheet) { openSheet.hidden = true; openSheet = null; }
+  renamingId = null;
+}
+
+// ===================== 설정 시트 =====================
+const FIELDS = [
+  { key: 'prep', label: '준비', type: 'dur', min: 0 },
+  { key: 'work', label: '운동', type: 'dur', min: 1 },
+  { key: 'rest', label: '휴식', type: 'dur', min: 0 },
+  { key: 'rounds', label: '라운드', type: 'count' },
+  { key: 'cycles', label: '사이클', type: 'count', tabataOnly: true },
+  { key: 'cycleRest', label: '사이클 간 휴식', type: 'dur', min: 0, tabataOnly: true },
+];
+let draft = null, draftMode = null;
+function makeSelect(from, to, val, aria, pad) {
+  const s = document.createElement('select'); s.setAttribute('aria-label', aria);
+  for (let i = from; i <= to; i++) {
+    const o = document.createElement('option'); o.value = String(i); o.textContent = pad ? String(i).padStart(2, '0') : String(i);
+    s.appendChild(o);
+  }
+  s.value = String(val);
+  return s;
+}
+function buildFieldRows() {
+  const box = $('fieldRows'); box.textContent = '';
+  for (const f of FIELDS) {
+    if (f.tabataOnly && draftMode !== 'tabata') continue;
+    const row = document.createElement('div'); row.className = 'row';
+    const lbl = document.createElement('span'); lbl.className = 'lbl'; lbl.textContent = f.label;
+    row.appendChild(lbl);
+    if (f.type === 'dur') {
+      const wrap = document.createElement('div'); wrap.className = 'dur';
+      const v = draft[f.key];
+      const mSel = makeSelect(0, 59, Math.floor(v / 60), `${f.label} 분`, true);
+      const sSel = makeSelect(0, 59, v % 60, `${f.label} 초`, true);
+      const onChange = () => {
+        let val = Number(mSel.value) * 60 + Number(sSel.value);
+        if (val < f.min) { val = f.min; mSel.value = String(Math.floor(val / 60)); sSel.value = String(val % 60); }
+        draft[f.key] = val; updateDraftTotal();
+      };
+      mSel.addEventListener('change', onChange); sSel.addEventListener('change', onChange);
+      const u1 = document.createElement('span'); u1.className = 'unit'; u1.textContent = '분';
+      const u2 = document.createElement('span'); u2.className = 'unit'; u2.textContent = '초';
+      wrap.append(mSel, u1, sSel, u2); row.appendChild(wrap);
+    } else {
+      const wrap = document.createElement('div'); wrap.className = 'stepper';
+      const minus = document.createElement('button'); minus.className = 'step-btn'; minus.textContent = '−'; minus.setAttribute('aria-label', `${f.label} 줄이기`);
+      const sel = makeSelect(1, 99, draft[f.key], f.label, false);
+      const plus = document.createElement('button'); plus.className = 'step-btn'; plus.textContent = '+'; plus.setAttribute('aria-label', `${f.label} 늘리기`);
+      const setV = (v) => { v = clampInt(v, 1, 99, 1); draft[f.key] = v; sel.value = String(v); updateDraftTotal(); };
+      minus.addEventListener('click', () => setV(draft[f.key] - 1));
+      plus.addEventListener('click', () => setV(draft[f.key] + 1));
+      sel.addEventListener('change', () => setV(Number(sel.value)));
+      wrap.append(minus, sel, plus); row.appendChild(wrap);
+    }
+    box.appendChild(row);
+  }
+  updateDraftTotal();
+}
+function updateDraftTotal() {
+  setText($('draftTotal'), fmt(totalOf(buildSegments(draftMode, sanitizeConfig(draft, draftMode))) / 1000));
+}
+function openSettings() {
+  if (mode === 'stopwatch') return;
+  draftMode = mode; draft = Object.assign({}, engines[mode].cfg);
+  $('settingsTitle').textContent = `설정 · ${MODE_TITLE[mode]}`;
+  $('settingsWarn').hidden = !engines[mode].isActive();
+  buildFieldRows(); renderAlertControls(); renderStatus();
+  showSheet('sheetSettings');
+}
+function closeSettings() {
+  if (draft && draftMode) {
+    const eng = engines[draftMode];
+    const next = sanitizeConfig(Object.assign({}, draft, { name: eng.cfg.name, presetId: eng.cfg.presetId }), draftMode);
+    if (!sameValues(next, eng.cfg)) applyConfig(draftMode, next);
+  }
+  draft = null; draftMode = null;
+  hideSheet(); render();
+}
+function applyConfig(m, cfg) {
+  S.configs[m] = cfg;
+  const e = engines[m];
+  e.reset(); e.setConfig(cfg); Voice.cancel();
+  save(); afterStateChange();
+}
+function renderAlertControls() {
+  for (const b of document.querySelectorAll('[data-alert]')) {
+    const on = b.dataset.alert === S.prefs.alertMode;
+    b.classList.toggle('on', on); b.setAttribute('aria-checked', on ? 'true' : 'false');
+  }
+  const sup = 'audioSession' in navigator;
+  $('silentRow').hidden = !sup; $('silentNote').hidden = !sup;
+  $('silentToggle').checked = !!S.prefs.silentPlayback;
+  renderAlertInfo();
+}
+function renderAlertInfo() {
+  const n = $('alertNote'); if (!n) return;
+  if (S.prefs.alertMode === 'beep') { n.textContent = '전환 3초 전부터 1초마다 짧은 음, 전환 시 긴 음이 울립니다.'; return; }
+  let v;
+  if (!Voice.supported) v = '이 브라우저는 음성 안내를 지원하지 않습니다.';
+  else if (Voice.voice) v = `음성: ${Voice.voice.name}`;
+  else v = '한국어 음성을 찾지 못해 기본 음성으로 읽습니다.';
+  n.textContent = `단계 이름과 셋·둘·하나를 음성으로 읽습니다. ${v}`;
+}
+function renderStatus() { const w = $('wakeStatus'); if (w) w.textContent = Wake.status; }
+function setAlertMode(m) {
+  if (S.prefs.alertMode === m) return;
+  S.prefs.alertMode = m; save();
+  const now = Date.now();
+  for (const k of MODES) { const e = engines[k]; if (e.state === 'running') { e.clearAudio(e.t(now)); e.lastT = e.t(now); } }
+  Voice.cancel();
+  if (m === 'beep' && anyIntervalRunning()) Snd.ensure();
+  renderAlertControls();
+}
+function setSilent(on) {
+  S.prefs.silentPlayback = on; save();
+  Snd.close(); Snd.applySession();
+  if (anyIntervalRunning() && S.prefs.alertMode === 'beep') {
+    Snd.ensure();
+    const now = Date.now();
+    for (const k of MODES) { const e = engines[k]; if (e.state === 'running') e.clearAudio(e.t(now)); }
+  }
+}
+function testSound() {
+  if (S.prefs.alertMode === 'beep') {
+    const ctx = Snd.ensure();
+    if (!ctx) { toast('이 브라우저는 소리 재생을 지원하지 않습니다'); return; }
+    const t0 = ctx.currentTime + 0.05;
+    for (let i = 0; i < 3; i++) Snd.tone(t0 + i, SND.count[0], SND.count[1], 'test');
+    Snd.tone(t0 + 3, SND.switch[0], SND.switch[1], 'test');
+    maybeSuspendAudio(5000);
+  } else {
+    if (!Voice.supported) { toast('이 브라우저는 음성 안내를 지원하지 않습니다'); return; }
+    ['셋', '둘', '하나', '운동'].forEach((w, i) => { if (i === 0) Voice.speak(w); else setTimeout(() => Voice.speak(w), i * 1000); });
+  }
+}
+
+// ===================== 프리셋 시트 =====================
+let renamingId = null;
+function presetSummary(p, m) {
+  const total = fmt(totalOf(buildSegments(m, p)) / 1000);
+  return m === 'tabata'
+    ? `준비 ${fmt(p.prep)} · 운동 ${fmt(p.work)} · 휴식 ${fmt(p.rest)} · ${p.rounds}라운드 × ${p.cycles}사이클 · 총 ${total}`
+    : `준비 ${fmt(p.prep)} · 운동 ${fmt(p.work)} · 휴식 ${fmt(p.rest)} · ${p.rounds}라운드 · 총 ${total}`;
+}
+function openPresets() {
+  if (mode === 'stopwatch') return;
+  renamingId = null;
+  $('presetsTitle').textContent = `프리셋 · ${MODE_TITLE[mode]}`;
+  $('presetName').value = engines[mode].cfg.name || '';
+  renderPresetList(); showSheet('sheetPresets');
+}
+function makeButton(cls, text, onClick) {
+  const b = document.createElement('button'); b.className = cls; b.textContent = text;
+  b.addEventListener('click', onClick);
+  return b;
+}
+function renderPresetList() {
+  const m = mode, list = S.presets[m], ul = $('presetList'), cfg = engines[m].cfg;
+  ul.textContent = '';
+  if (!list.length) {
+    const li = document.createElement('li'); li.className = 'empty'; li.textContent = '저장된 프리셋이 없습니다.'; ul.appendChild(li);
+  }
+  let focusInput = null;
+  for (const p of list) {
+    const li = document.createElement('li');
+    if (p.id === renamingId) { // 이름 변경 중인 항목
+      li.className = 'pitem editing';
+      const inp = document.createElement('input');
+      inp.type = 'text'; inp.className = 'p-input'; inp.maxLength = 30; inp.value = p.name;
+      inp.setAttribute('aria-label', '새 프리셋 이름'); inp.setAttribute('enterkeyhint', 'done'); inp.autocomplete = 'off';
+      inp.addEventListener('keydown', (ev) => {
+        if (ev.key === 'Enter' && !ev.isComposing) { ev.preventDefault(); commitRename(p.id, inp.value); }
+        else if (ev.key === 'Escape') { ev.preventDefault(); renamingId = null; renderPresetList(); }
+      });
+      li.append(inp,
+        makeButton('p-ok', '저장', () => commitRename(p.id, inp.value)),
+        makeButton('p-cancel', '취소', () => { renamingId = null; renderPresetList(); }));
+      ul.appendChild(li); focusInput = inp;
+      continue;
+    }
+    li.className = 'pitem' + (p.id === cfg.presetId ? ' current' : '');
+    const main = document.createElement('button'); main.className = 'p-main';
+    const nm = document.createElement('div'); nm.className = 'p-name'; nm.textContent = p.name;
+    const sm = document.createElement('div'); sm.className = 'p-sum'; sm.textContent = presetSummary(p, m);
+    main.append(nm, sm);
+    main.addEventListener('click', () => loadPreset(p.id));
+    const ren = makeButton('p-act p-ren', '이름 변경', () => { renamingId = p.id; renderPresetList(); });
+    const del = makeButton('p-act p-del', '삭제', () => {
+      if (del.classList.contains('armed')) { deletePreset(p.id); return; }
+      del.classList.add('armed'); del.textContent = '삭제 확인';
+      setTimeout(() => { if (del.isConnected) { del.classList.remove('armed'); del.textContent = '삭제'; } }, 3000);
+    });
+    li.append(main, ren, del); ul.appendChild(li);
+  }
+  if (focusInput) { focusInput.focus(); focusInput.select(); } // 탭 처리 안에서 바로 포커스해야 iOS 키보드가 열림
+  const cur = cfg.presetId ? list.find((p) => p.id === cfg.presetId) : null;
+  const ow = $('btnOverwrite');
+  if (cur && !sameValues(cur, cfg)) { ow.hidden = false; ow.textContent = `‘${cur.name}’에 현재 설정 덮어쓰기`; }
+  else ow.hidden = true;
+}
+function commitRename(id, raw) {
+  const m = mode, list = S.presets[m], p = list.find((x) => x.id === id);
+  if (!p) return;
+  const name = String(raw).trim().slice(0, 30);
+  if (!name) { toast('이름을 입력하세요'); return; }
+  if (list.some((x) => x.id !== id && x.name === name)) { toast('같은 이름의 프리셋이 이미 있습니다'); return; }
+  const old = p.name;
+  p.name = name;
+  const cfg = engines[m].cfg;
+  if (cfg.presetId === id) cfg.name = name;
+  renamingId = null;
+  save(); renderPresetList(); render();
+  if (old !== name) toast(`‘${old}’ → ‘${name}’`);
+}
+const valuesOf = (c) => { const o = {}; for (const k of VALUE_KEYS) o[k] = c[k]; return o; };
+function loadPreset(id) {
+  const m = mode, p = S.presets[m].find((x) => x.id === id);
+  if (!p) return;
+  applyConfig(m, sanitizeConfig(Object.assign({}, p, { name: p.name, presetId: p.id }), m));
+  hideSheet(); toast(`‘${p.name}’ 불러옴`);
+}
+function saveNewPreset() {
+  const m = mode, input = $('presetName'), name = input.value.trim().slice(0, 30);
+  if (!name) { toast('프리셋 이름을 입력하세요'); input.focus(); return; }
+  const cfg = engines[m].cfg, list = S.presets[m];
+  let p = list.find((x) => x.name === name);
+  if (p) { Object.assign(p, valuesOf(cfg)); toast(`‘${name}’ 덮어씀`); }
+  else {
+    p = Object.assign({ id: 'p' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6), name }, valuesOf(cfg));
+    list.push(p); toast(`‘${name}’ 저장됨`);
+  }
+  cfg.name = name; cfg.presetId = p.id;
+  input.blur(); save(); renderPresetList(); render();
+}
+function overwritePreset() {
+  const m = mode, cfg = engines[m].cfg, p = S.presets[m].find((x) => x.id === cfg.presetId);
+  if (!p) return;
+  Object.assign(p, valuesOf(cfg));
+  save(); renderPresetList(); render(); toast(`‘${p.name}’ 덮어씀`);
+}
+function deletePreset(id) {
+  const m = mode, list = S.presets[m], i = list.findIndex((x) => x.id === id);
+  if (i < 0) return;
+  const [p] = list.splice(i, 1);
+  const cfg = engines[m].cfg;
+  if (cfg.presetId === id) { cfg.name = null; cfg.presetId = null; }
+  save(); renderPresetList(); render(); toast(`‘${p.name}’ 삭제됨`);
+}
+
+// ===================== 토스트 =====================
+let toastTimer = null;
+function toast(msg, ms = 2200) {
+  const t = el.toast;
+  t.textContent = msg; t.hidden = false;
+  requestAnimationFrame(() => t.classList.add('show'));
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => {
+    t.classList.remove('show');
+    setTimeout(() => { if (!t.classList.contains('show')) t.hidden = true; }, 250);
+  }, ms);
+}
+
+// ===================== 이벤트 연결 =====================
+el.btnPlay.addEventListener('click', onPlay);
+el.btnReset.addEventListener('click', onReset);
+el.btnSettings.addEventListener('click', openSettings);
+el.btnPresets.addEventListener('click', openPresets);
+el.noticeOk.addEventListener('click', () => { S.prefs.noticeDismissed = true; save(); el.notice.hidden = true; });
+el.swPlay.addEventListener('click', swToggle);
+el.swLap.addEventListener('click', swLap);
+el.swReset.addEventListener('click', swReset);
+$('settingsDone').addEventListener('click', closeSettings);
+$('presetsClose').addEventListener('click', hideSheet);
+for (const sh of document.querySelectorAll('.sheet')) {
+  sh.addEventListener('click', (ev) => { if (ev.target === sh) { if (sh.id === 'sheetSettings') closeSettings(); else hideSheet(); } });
+}
+for (const b of document.querySelectorAll('[data-alert]')) b.addEventListener('click', () => setAlertMode(b.dataset.alert));
+$('silentToggle').addEventListener('change', (ev) => setSilent(ev.target.checked));
+$('btnTest').addEventListener('click', testSound);
+$('btnSaveNew').addEventListener('click', saveNewPreset);
+$('presetName').addEventListener('keydown', (ev) => { if (ev.key === 'Enter' && !ev.isComposing) { ev.preventDefault(); saveNewPreset(); } });
+$('btnOverwrite').addEventListener('click', overwritePreset);
+for (const b of document.querySelectorAll('.tab')) b.addEventListener('click', () => setMode(b.dataset.mode));
+
+// PC 단축키: Space 시작/일시정지, R 초기화, L 랩(스톱워치), 1·2·3 탭 이동, Esc 시트 닫기
+document.addEventListener('keydown', (ev) => {
+  if (ev.target && ev.target.closest && ev.target.closest('input, select, textarea')) return;
+  if (openSheet) {
+    if (ev.key === 'Escape') { if (openSheet.id === 'sheetSettings') closeSettings(); else hideSheet(); }
+    return;
+  }
+  if (ev.ctrlKey || ev.metaKey || ev.altKey) return;
+  switch (ev.code) {
+    case 'Space':
+      ev.preventDefault();
+      if (ev.repeat) return;
+      if (document.activeElement && document.activeElement !== document.body) document.activeElement.blur();
+      if (mode === 'stopwatch') swToggle(); else onPlay();
+      break;
+    case 'KeyR': if (mode === 'stopwatch') swReset(); else onReset(); break;
+    case 'KeyL': if (mode === 'stopwatch') swLap(); break;
+    case 'Digit1': setMode('tabata'); break;
+    case 'Digit2': setMode('round'); break;
+    case 'Digit3': setMode('stopwatch'); break;
+    default: break;
+  }
+});
+
+// 탭할 때 끊긴 소리·화면 켜짐 유지를 다시 연다 (iOS는 사용자 탭이 있어야 열림)
+document.addEventListener('pointerdown', () => {
+  if (anyIntervalRunning() && S.prefs.alertMode === 'beep' && (!Snd.ctx || Snd.ctx.state !== 'running')) Snd.ensure();
+  if (anyActive() && !Wake.lock) Wake.request();
+}, true);
+
+function onVisible() {
+  const now = Date.now();
+  for (const m of MODES) {
+    const e = engines[m];
+    if (e.state === 'running') { e.clearAudio(e.t(now)); e.lastT = Math.max(e.lastT, e.t(now)); }
+  }
+  let check = false;
+  if (Snd.ctx && Snd.ctx.state !== 'running' && anyIntervalRunning() && S.prefs.alertMode === 'beep') {
+    const p = Snd.ctx.resume(); if (p && p.catch) p.catch(() => {});
+    check = true;
+  }
+  tick(); if (anyRunning()) ensureTicking(); syncWakeLock();
+  if (check) setTimeout(() => { if (Snd.ctx && Snd.ctx.state !== 'running' && anyIntervalRunning()) toast('소리가 멈췄다면 화면을 한 번 탭하세요', 3000); }, 500);
+}
+document.addEventListener('visibilitychange', () => {
+  if (document.visibilityState === 'hidden') {
+    const now = Date.now();
+    for (const m of MODES) engines[m].update(now, true); // PC: 백그라운드 탭에서도 비프음이 나도록 남은 소리를 미리 예약
+    persistRuns();
+  } else onVisible();
+});
+window.addEventListener('pageshow', (ev) => { if (ev.persisted) onVisible(); });
+window.addEventListener('pagehide', persistRuns);
+
+// ===================== 시작 =====================
+$('appVersion').textContent = APP_VERSION;
+el.notice.hidden = S.prefs.noticeDismissed;
+if (Voice.supported) { Voice.pick(); try { speechSynthesis.onvoiceschanged = () => Voice.pick(); } catch (e) { /* 무시 */ } }
+restoreRuns();
+updateModeUI(); render(); renderLaps();
+if (anyRunning()) {
+  ensureTicking();
+  if (anyIntervalRunning()) toast('진행 중이던 타이머를 이어서 표시합니다. 소리가 나지 않으면 화면을 한 번 탭하세요', 3500);
+}
+syncWakeLock();
+
+if ('serviceWorker' in navigator && /^https?:$/.test(location.protocol)) {
+  window.addEventListener('load', () => { navigator.serviceWorker.register('./sw.js').catch(() => {}); });
+}
+
+// 동작 확인용 (콘솔에서 TabataDebug로 상태 확인)
+window.TabataDebug = { engines, SW, Snd, Voice, Wake, S, buildSegments, buildEvents, version: APP_VERSION };
+})();
+</script>
+</body>
+</html>
